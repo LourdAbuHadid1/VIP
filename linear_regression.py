@@ -4,7 +4,9 @@ def fit_linear(x, y):
     y: list of Y values (peak area)
     Returns (m, b, r2) for the model Y = m*X + b
     """
-
+  # ensure all values are floats
+    x = [float(xi) for xi in x]
+    y = [float(yi) for yi in y]
     n = len(x)
 
     # sum(x)

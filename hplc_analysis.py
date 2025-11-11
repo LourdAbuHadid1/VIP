@@ -1,51 +1,62 @@
-# Make sure that the CSV has the expected columns:
-#"Compound Name" → to filter for acetaminophen
-#"Sample Type" → to separate standards vs samples
-#"Sample Name" → for total vs filtrate
-#"Concentration (µg/mL)" → known concentrations of standards
-#"Peak Area" → HPLC peak areas
-
 import pandas as pd
 import matplotlib.pyplot as plt
 from linear_regression import fit_linear
+import glob
+import re
 
-# Step 1: Load HPLC data
-data = pd.read_csv("hplc_data.csv") #change name if needed
+# Adjust RT window to match acetaminophen peak
+RT_MIN = 2.4
+RT_MAX = 2.6
+concentrations = [0, 10, 20, 40, 60]  # µg/mL
 
-# Step 2: Extract only pure Acetaminophen
-acet_data = data[data["Compound Name"].str.strip().str.lower() == "acetaminophen"]
+def extract_areas(run_pattern):
+    areas = []
 
-# Step 3: Separate standards vs. samples
-standards = acet_data[acet_data["Sample Type"] == "Standard"]
-samples = acet_data[acet_data["Sample Type"] != "Standard"]
+    # Get all matching files
+    files = glob.glob(run_pattern)
+    if not files:
+        print("No files found with pattern:", run_pattern)
+        return []
 
-# Step 4: Prepare calibration data
-x = standards["Concentration (µg/mL)"].astype(float).tolist()
-y = standards["Peak Area"].astype(float).tolist()
+    # Sort files by the concentration number in the filename
+    def extract_number(filename):
+        match = re.search(r'conc(\d+)', filename)
+        return int(match.group(1)) if match else -1
 
-# Step 5: Fit the calibration curve
-m, b, r2 = fit_linear(x, y)
+    files = sorted(files, key=extract_number)
+    print("Files found (sorted):", files)
+
+    for f in files:
+        df = pd.read_csv(f)
+        # Filter peaks inside the RT window for acetaminophen
+        filtered = df[(df['RetTime [min]'] >= RT_MIN) & (df['RetTime [min]'] <= RT_MAX)]
+        if not filtered.empty:
+            area = filtered['Area [mAU * s]'].iloc[0]
+        else:
+            area = 0  # handle missing peak
+        areas.append(area)
+
+    return areas
+
+areas_run1 = extract_areas("HPLC_Run1_conc*.csv")
+print("Extracted areas:", areas_run1)
+print("Number of areas:", len(areas_run1))
+
+if len(areas_run1) != len(concentrations):
+    raise ValueError("Number of areas does not match number of concentrations!")
+
+m, b, r2 = fit_linear(concentrations, areas_run1)
+
+print("\n--- Run 1 ---")
 print(f"Slope: {m:.4f}, Intercept: {b:.4f}, R²: {r2:.4f}")
 
-# Step 6: Calculate concentrations for unknown samples
-samples["Calculated Concentration (µg/mL)"] = (samples["Peak Area"] - b) / m
-
-# Step 7: Compute unbound fraction and percent penetration
-
-total = samples[samples["Sample Name"].str.contains("Total", case=False)]["Calculated Concentration (µg/mL)"].mean()
-filtrate = samples[samples["Sample Name"].str.contains("Filtrate", case=False)]["Calculated Concentration (µg/mL)"].mean()
-
-f_u = filtrate / total
-penetration = f_u * 100
-
-print(f"Unbound fraction: {f_u:.4f}")
-print(f"Percent penetration: {penetration:.2f}%")
-
-# Plot Calibrtaion Curve
-plt.scatter(x, y, label="Standards")
-plt.plot(x, [m*xi + b for xi in x], color='red', label="Fit")
+plt.figure(figsize=(8,5))
+plt.scatter(concentrations, areas_run1, label="Run 1 Data", color="blue")
+x_vals = sorted(concentrations)
+plt.plot(x_vals, [m*x + b for x in x_vals], '--', color='red', label="Run 1 Fit")
 plt.xlabel("Concentration (µg/mL)")
-plt.ylabel("Peak Area")
-plt.title("Calibration Curve - Acetaminophen")
+plt.ylabel("Peak Area (mAU·s)")
+plt.title("Calibration Curve - Acetaminophen (Run 1)")
 plt.legend()
+plt.tight_layout()
 plt.show()
