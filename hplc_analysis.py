@@ -7,6 +7,14 @@ import re
 import numpy as np
 from linear_regression import fit_linear  # your existing linear regression function
 
+plt.rcParams['font.family'] = 'Times New Roman'
+plt.rcParams['font.size'] = 12          # base font size
+plt.rcParams['axes.titlesize'] = 12
+plt.rcParams['axes.labelsize'] = 12
+plt.rcParams['legend.fontsize'] = 10
+plt.rcParams['xtick.labelsize'] = 10
+plt.rcParams['ytick.labelsize'] = 10
+
 # === PARAMETERS ===
 concentrations = [0, 10, 20, 40, 60]  # µg/mL
 RT_MAX = 4.0  # consider all peaks up to 4 min for unbound fraction
@@ -49,18 +57,11 @@ m, b, r2 = fit_linear(concentrations, avg_unbound)
 
 # === OUTPUT RESULTS ===
 print("\n--- RESULTS ---")
-print("Unbound Run1:", unbound_run1)
-print("Unbound Run2:", unbound_run2)
-print("Average Unbound Fraction:", avg_unbound)
-print(f"Slope = {m:.4f}, Intercept = {b:.4f}, R² = {r2:.4f}")
+print("Unbound Data:", unbound_run2)
 
 # === PLOT ===
 plt.figure(figsize=(8,5))
-plt.scatter(concentrations, unbound_run1, label="Run 1", color="orange")
-plt.scatter(concentrations, unbound_run2, label="Run 2", color="blue")
-plt.scatter(concentrations, avg_unbound, label="Average", color="green", marker='x', s=80)
-x_vals = sorted(concentrations)
-plt.plot(x_vals, [m*x + b for x in x_vals], '--', color='red', label="Fit (average)")
+plt.scatter(concentrations, unbound_run2, label="Data", color="blue")
 plt.xlabel("Concentration (µg/mL)")
 plt.ylabel("Unbound Fraction (tallest peak / total area ≤ 4 min)")
 plt.title("Unbound Fraction Calibration Curve")
